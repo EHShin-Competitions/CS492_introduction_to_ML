@@ -47,7 +47,7 @@ def main():
 
     print("<with bias> ls: %.3f, pe: %.3f"%(ls1_1, pe1_1))
     print("<w/o  bias> ls: %.3f, pe: %.3f"%(ls1_2, pe1_2))
-
+    
 def prediction_error(X, beta, Y):
     s = np.linalg.norm(np.dot(X,beta)-Y, ord=1)
     return s/(X.shape[0])
@@ -62,8 +62,35 @@ def loss1(X, beta, Y):
     return np.sum(error*error)
 
 def learn1(X, Y):
+    #optimal regression
     XT = np.transpose(X)
     XTXinv = np.linalg.inv(np.dot(XT, X))
     return np.dot(np.dot(XTXinv, XT), Y)
+
+def learn2(X, Y, iterations, step_size):
+    #gradient descent
+    loss_history = []
+    beta = jitter_init(FIELDS, 1)
+    for i in range(iterations):
+        grad = sqloss_gradient(X, Y, beta)
+        beta = beta - step_size * grad
+        loss_history.append(loss1(X, beta, Y))
+
+    return (beta, loss_history)
+
+def jitter_init(n, limit):
+    limit_arr = np.full(n, 1)
+    rand_arr = np.randn(n) / 2
+    rand_arr = np.minimum(rand_arr, limit_arr)
+    rand_arr = np.maximum(rand_arr, -limit_arr)
+    return rand_arr * limit
+
+def sqloss_gradient(X, Y, beta):
+    return np.dot(np.transpose(X), np.dot(X, beta) - Y)
+
+def learn3(X, Y):
+    #coordinate descent
+    pass
+
 
 main()
