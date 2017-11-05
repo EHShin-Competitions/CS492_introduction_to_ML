@@ -1,5 +1,6 @@
 import urllib.request as rq
 import numpy as np
+import matplotlib.pyplot as plt
 
 FIELDS = 13
 N_TRAIN = 400
@@ -45,8 +46,25 @@ def main():
     ls1_2 = loss1(trainX, beta1_2, trainY)
     pe1_2 = prediction_error(testX, beta1_2, testY)
 
+    #gradient descent
+    iter_2 = 50
+    step_2 = 0.001 # > 0.001 : too big
+    beta2, history2 = learn2(trainXones, trainY, iter_2, 0.00100)
+    pe2 = prediction_error(testXones, beta2, testY)
+
+    #coordinate descent
+    iter_3 = 50
+    beta3, history3 = learn3(trainXones, trainY, iter_3)
+    pe3 = prediction_error(testXones, beta3, testY)
+
+    base = np.arange(iter_2)
+    plt.plot(base, history2, base, np.full(iter_2, ls1_1), base, history3)
+    plt.show()
+    
     print("<with bias> ls: %.3f, pe: %.3f"%(ls1_1, pe1_1))
     print("<w/o  bias> ls: %.3f, pe: %.3f"%(ls1_2, pe1_2))
+    print("<grad desc> pe: %.3f"%(pe2))
+    print("<cord desc> pe: %.3f"%(pe3))
     
 def prediction_error(X, beta, Y):
     s = np.linalg.norm(np.dot(X,beta)-Y, ord=1)
@@ -70,17 +88,18 @@ def learn1(X, Y):
 def learn2(X, Y, iterations, step_size):
     #gradient descent
     loss_history = []
-    beta = jitter_init(FIELDS, 1)
+    beta = jitter_init(X.shape[1], 1)
     for i in range(iterations):
         grad = sqloss_gradient(X, Y, beta)
         beta = beta - step_size * grad
-        loss_history.append(loss1(X, beta, Y))
+        ls = loss1(X, beta, Y)
+        loss_history.append(ls)
 
     return (beta, loss_history)
 
 def jitter_init(n, limit):
     limit_arr = np.full(n, 1)
-    rand_arr = np.randn(n) / 2
+    rand_arr = np.random.randn(n) / 2
     rand_arr = np.minimum(rand_arr, limit_arr)
     rand_arr = np.maximum(rand_arr, -limit_arr)
     return rand_arr * limit
@@ -88,9 +107,21 @@ def jitter_init(n, limit):
 def sqloss_gradient(X, Y, beta):
     return np.dot(np.transpose(X), np.dot(X, beta) - Y)
 
-def learn3(X, Y):
+def learn3(X, Y, iterations):
     #coordinate descent
-    pass
+    loss_history = []
+    beta = jitter_init(X.shape[1], 1)
+    for i in range(iterations):
+        k = i%(beta.shape[0])
+        bo = coordinate_optimal(X, Y, beta, k)
+        beta[k] = bo
+        ls = loss1(X, beta, Y)
+        loss_history.append(ls)
+    
+    return (beta, loss_history)
 
+def coordinate_optimal(X, Y, beta, k):
+    Ak = np.dot(X,beta) - Y - X[:,k]*beta[k]
+    return -(np.dot(Ak, X[:,k])/np.dot(X[:,k],X[:,k]))
 
 main()
