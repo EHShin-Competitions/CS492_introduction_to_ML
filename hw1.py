@@ -30,42 +30,6 @@ def splitData(X, Y):
     train_Y, test_Y = Y[train_i], Y[test_i]
     return (train_X, train_Y, test_X, test_Y)
 
-def main():
-    fullX, fullY = getFullData() #506 samples
-    trainX, trainY, testX, testY = splitData(fullX, fullY)
-
-    #include bias term
-    trainXones = append_ones(trainX)
-    testXones = append_ones(testX)
-    beta1_1 = learn1(trainXones, trainY)
-    ls1_1 = loss1(trainXones, beta1_1, trainY)
-    pe1_1 = prediction_error(testXones, beta1_1, testY)
-
-    #bias fixed to 0
-    beta1_2 = learn1(trainX, trainY)
-    ls1_2 = loss1(trainX, beta1_2, trainY)
-    pe1_2 = prediction_error(testX, beta1_2, testY)
-
-    #gradient descent
-    iter_2 = 50
-    step_2 = 0.001 # > 0.001 : too big
-    beta2, history2 = learn2(trainXones, trainY, iter_2, 0.00100)
-    pe2 = prediction_error(testXones, beta2, testY)
-
-    #coordinate descent
-    iter_3 = 50
-    beta3, history3 = learn3(trainXones, trainY, iter_3)
-    pe3 = prediction_error(testXones, beta3, testY)
-
-    base = np.arange(iter_2)
-    plt.plot(base, history2, base, np.full(iter_2, ls1_1), base, history3)
-    plt.show()
-    
-    print("<with bias> ls: %.3f, pe: %.3f"%(ls1_1, pe1_1))
-    print("<w/o  bias> ls: %.3f, pe: %.3f"%(ls1_2, pe1_2))
-    print("<grad desc> pe: %.3f"%(pe2))
-    print("<cord desc> pe: %.3f"%(pe3))
-    
 def prediction_error(X, beta, Y):
     s = np.linalg.norm(np.dot(X,beta)-Y, ord=1)
     return s/(X.shape[0])
@@ -74,48 +38,44 @@ def append_ones(X):
     ones = np.full(X.shape[0], 1).reshape(-1,1)
     return np.append(ones, X, axis=1)
 
-def loss1(X, beta, Y):
+def square_loss(X, beta, Y):
     #loss for linear regresion
     error = (np.dot(X, beta)-Y)
     return np.sum(error*error)
 
-def learn1(X, Y):
+def learn_optimal(X, Y):
     #optimal regression
     XT = np.transpose(X)
     XTXinv = np.linalg.inv(np.dot(XT, X))
     return np.dot(np.dot(XTXinv, XT), Y)
 
-def learn2(X, Y, iterations, step_size):
+def learn_grad_desc(X, Y, iterations, step_size):
     #gradient descent
     loss_history = []
-    beta = jitter_init(X.shape[1], 1)
+    beta = beta_init(X.shape[1])
     for i in range(iterations):
+        ls = square_loss(X, beta, Y)
         grad = sqloss_gradient(X, Y, beta)
         beta = beta - step_size * grad
-        ls = loss1(X, beta, Y)
         loss_history.append(ls)
 
     return (beta, loss_history)
 
-def jitter_init(n, limit):
-    limit_arr = np.full(n, 1)
-    rand_arr = np.random.randn(n) / 2
-    rand_arr = np.minimum(rand_arr, limit_arr)
-    rand_arr = np.maximum(rand_arr, -limit_arr)
-    return rand_arr * limit
+def beta_init(n):
+    return np.full(n, 0)
 
 def sqloss_gradient(X, Y, beta):
     return np.dot(np.transpose(X), np.dot(X, beta) - Y)
 
-def learn3(X, Y, iterations):
+def learn_coord_desc(X, Y, iterations):
     #coordinate descent
     loss_history = []
-    beta = jitter_init(X.shape[1], 1)
+    beta = beta_init(X.shape[1])
     for i in range(iterations):
+        ls = square_loss(X, beta, Y)
         k = i%(beta.shape[0])
         bo = coordinate_optimal(X, Y, beta, k)
         beta[k] = bo
-        ls = loss1(X, beta, Y)
         loss_history.append(ls)
     
     return (beta, loss_history)
@@ -123,5 +83,87 @@ def learn3(X, Y, iterations):
 def coordinate_optimal(X, Y, beta, k):
     Ak = np.dot(X,beta) - Y - X[:,k]*beta[k]
     return -(np.dot(Ak, X[:,k])/np.dot(X[:,k],X[:,k]))
+
+def report_values():
+    fullX, fullY = getFullData()
+    results = [[],[],[],[]]
+    REP_NUM = 10
+    for i in range(REP_NUM):
+        trainX, trainY, testX, testY = splitData(fullX, fullY)
+        trainXones = append_ones(trainX)
+        testXones = append_ones(testX)
+
+        # problem 1_1 : optimal with bias term
+        beta1_1 = learn_optimal(trainXones, trainY)
+        results[0].append(prediction_error(testXones, beta1_1, testY))
+
+        # problem 1_2 : optimal without bias term
+        beta1_2 = learn_optimal(trainX, trainY)
+        results[1].append(prediction_error(testX, beta1_2, testY))
+
+        # problem 2 : gradient descent
+        gd_iter = 50
+        gd_step = 0.001 # > 0.001 : too big
+        beta2 = learn_grad_desc(trainXones, trainY, gd_iter, gd_step)[0]
+        results[2].append(prediction_error(testXones, beta2, testY))
+
+        # problem 3 : coordinate descent
+        cd_iter = 50
+        beta3 = learn_coord_desc(trainXones, trainY, cd_iter)[0]
+        results[3].append(prediction_error(testXones, beta3, testY))
+
+    print("<Average Prediction Errors>")
+    print("with bias term : %.3f"%(sum(results[0])/REP_NUM))
+    print("bias fixed to 0 : %.3f"%(sum(results[1])/REP_NUM))
+    print("gradient descent : %.3f"%(sum(results[2])/REP_NUM))
+    print("coordinate descent : %.3f"%(sum(results[3])/REP_NUM))
+
+def report_graph():
+    fullX, fullY = getFullData()
+    trainX, trainY, testX, testY = splitData(fullX, fullY)
+    trainXones = append_ones(trainX)
+    testXones = append_ones(testX)
+
+    # optimal loss
+    beta_optimal = learn_optimal(trainXones, trainY)
+    loss_optimal = square_loss(trainXones, beta_optimal, trainY)
+
+    # problem 2 : gradient descent
+    gd_iter = 30
+    history2_small = learn_grad_desc(trainXones, trainY, gd_iter, 0.00001)[1]
+    history2_proper = learn_grad_desc(trainXones, trainY, gd_iter, 0.0008)[1]
+    history2_large = learn_grad_desc(trainXones, trainY, gd_iter, 0.0011)[1]
+    base = np.arange(gd_iter)
+    plt.figure(1, figsize=(12,10))
+    plt.subplot(221)
+    plt.plot(base, np.full(gd_iter, loss_optimal), base, history2_small)
+    plt.title('small step size')
+    plt.ylabel('loss')
+    plt.xlabel('iterations')
+    plt.subplot(222)
+    plt.plot(base, np.full(gd_iter, loss_optimal), base, history2_proper)
+    plt.title('proper step size')
+    plt.ylabel('loss')
+    plt.xlabel('iterations')
+    plt.subplot(223)
+    plt.plot(base, np.full(gd_iter, loss_optimal), base, history2_large)
+    plt.title('large step size')
+    plt.ylabel('loss')
+    plt.xlabel('iterations')
+
+    # problem 3 : coordinate descent
+    cd_iter = 30
+    history3 = learn_coord_desc(trainXones, trainY, cd_iter)[1]
+    base = np.arange(cd_iter)
+    plt.subplot(224)
+    plt.plot(base, np.full(gd_iter, loss_optimal), base, history3)
+    plt.title('coordinate descent')
+    plt.ylabel('loss')
+    plt.xlabel('iterations')
+    plt.show()
+
+def main():
+    report_values()
+    report_graph()
 
 main()
