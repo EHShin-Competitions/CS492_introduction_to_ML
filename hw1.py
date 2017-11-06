@@ -102,21 +102,30 @@ def report_values():
         results[1].append(prediction_error(testX, beta1_2, testY))
 
         # problem 2 : gradient descent
-        gd_iter = 50
-        gd_step = 0.001 # > 0.001 : too big
+        gd_iter = 100
+        gd_step = 0.0008
         beta2 = learn_grad_desc(trainXones, trainY, gd_iter, gd_step)[0]
         results[2].append(prediction_error(testXones, beta2, testY))
 
         # problem 3 : coordinate descent
-        cd_iter = 50
+        cd_iter = 100
         beta3 = learn_coord_desc(trainXones, trainY, cd_iter)[0]
         results[3].append(prediction_error(testXones, beta3, testY))
 
-    print("<Average Prediction Errors>")
-    print("with bias term : %.3f"%(sum(results[0])/REP_NUM))
-    print("bias fixed to 0 : %.3f"%(sum(results[1])/REP_NUM))
-    print("gradient descent : %.3f"%(sum(results[2])/REP_NUM))
-    print("coordinate descent : %.3f"%(sum(results[3])/REP_NUM))
+    print("-- Prediction Errors --")
+    print("<analytic, with bias term>")
+    print_data(results[0])
+    print("<analytic, bias fixed to 0>")
+    print_data(results[1])
+    print("<gradient descent>")
+    print_data(results[2])
+    print("<coordinate descent>")
+    print_data(results[3])
+
+def print_data(data_list):
+    for data in data_list:
+        print("%.3f"%(data))
+    print("average: %.3f"%(sum(data_list)/len(data_list)))
 
 def report_graph():
     fullX, fullY = getFullData()
@@ -129,8 +138,8 @@ def report_graph():
     loss_optimal = square_loss(trainXones, beta_optimal, trainY)
 
     # problem 2 : gradient descent
-    gd_iter = 30
-    history2_small = learn_grad_desc(trainXones, trainY, gd_iter, 0.00001)[1]
+    gd_iter = 100
+    history2_small = learn_grad_desc(trainXones, trainY, gd_iter, 0.000001)[1]
     history2_proper = learn_grad_desc(trainXones, trainY, gd_iter, 0.0008)[1]
     history2_large = learn_grad_desc(trainXones, trainY, gd_iter, 0.0011)[1]
     base = np.arange(gd_iter)
@@ -152,7 +161,7 @@ def report_graph():
     plt.xlabel('iterations')
 
     # problem 3 : coordinate descent
-    cd_iter = 30
+    cd_iter = 100
     history3 = learn_coord_desc(trainXones, trainY, cd_iter)[1]
     base = np.arange(cd_iter)
     plt.subplot(224)
