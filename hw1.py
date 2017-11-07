@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 FIELDS = 13
 N_TRAIN = 400
 
+# get data onilne and parse
 def getFullData():
     PATH = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/regression/housing_scale"
     ro = rq.urlopen(PATH)
@@ -23,6 +24,7 @@ def getFullData():
         current_field += 1
     return np.array(dataX), np.array(dataY)
 
+# randomly split data into training data and test data
 def splitData(X, Y):
     indicies = np.random.permutation(X.shape[0])
     train_i, test_i = indicies[:N_TRAIN], indicies[N_TRAIN:]
@@ -30,27 +32,29 @@ def splitData(X, Y):
     train_Y, test_Y = Y[train_i], Y[test_i]
     return (train_X, train_Y, test_X, test_Y)
 
+# prediction error for testing
 def prediction_error(X, beta, Y):
     s = np.linalg.norm(np.dot(X,beta)-Y, ord=1)
     return s/(X.shape[0])
 
+# append a column of ones
 def append_ones(X):
     ones = np.full(X.shape[0], 1).reshape(-1,1)
     return np.append(ones, X, axis=1)
 
+# objective function for linear regression
 def square_loss(X, beta, Y):
-    #loss for linear regresion
     error = (np.dot(X, beta)-Y)
     return np.sum(error*error)
 
+# analytic optimal solution for linear regression
 def learn_optimal(X, Y):
-    #optimal regression
     XT = np.transpose(X)
     XTXinv = np.linalg.inv(np.dot(XT, X))
     return np.dot(np.dot(XTXinv, XT), Y)
 
+# gradient descent
 def learn_grad_desc(X, Y, iterations, step_size):
-    #gradient descent
     loss_history = []
     beta = beta_init(X.shape[1])
     for i in range(iterations):
@@ -61,14 +65,16 @@ def learn_grad_desc(X, Y, iterations, step_size):
 
     return (beta, loss_history)
 
+# intialize beta
 def beta_init(n):
     return np.full(n, 0)
 
+# gradient for square loss wrt beta
 def sqloss_gradient(X, Y, beta):
-    return np.dot(np.transpose(X), np.dot(X, beta) - Y)
+    return 2*np.dot(np.transpose(X), np.dot(X, beta) - Y)
 
+# coordinate descent
 def learn_coord_desc(X, Y, iterations):
-    #coordinate descent
     loss_history = []
     beta = beta_init(X.shape[1])
     for i in range(iterations):
@@ -80,10 +86,12 @@ def learn_coord_desc(X, Y, iterations):
     
     return (beta, loss_history)
 
+# optimal value for k-th coordinate given others are fixed.
 def coordinate_optimal(X, Y, beta, k):
     Ak = np.dot(X,beta) - Y - X[:,k]*beta[k]
     return -(np.dot(Ak, X[:,k])/np.dot(X[:,k],X[:,k]))
 
+# report for 10 training/test splits.
 def report_values():
     fullX, fullY = getFullData()
     results = [[],[],[],[]]
@@ -103,7 +111,7 @@ def report_values():
 
         # problem 2 : gradient descent
         gd_iter = 100
-        gd_step = 0.0008
+        gd_step = 0.0003
         beta2 = learn_grad_desc(trainXones, trainY, gd_iter, gd_step)[0]
         results[2].append(prediction_error(testXones, beta2, testY))
 
@@ -123,10 +131,13 @@ def report_values():
     print_data(results[3])
 
 def print_data(data_list):
+    s = ""
     for data in data_list:
-        print("%.3f"%(data))
-    print("average: %.3f"%(sum(data_list)/len(data_list)))
+        s = s + " %.3f,"%(data)
+    s = s[:-1] + "-> average: %.3f"%(sum(data_list)/len(data_list))
+    print(s)
 
+# plot loss for different methods
 def report_graph():
     fullX, fullY = getFullData()
     trainX, trainY, testX, testY = splitData(fullX, fullY)
@@ -140,8 +151,8 @@ def report_graph():
     # problem 2 : gradient descent
     gd_iter = 100
     history2_small = learn_grad_desc(trainXones, trainY, gd_iter, 0.000001)[1]
-    history2_proper = learn_grad_desc(trainXones, trainY, gd_iter, 0.0008)[1]
-    history2_large = learn_grad_desc(trainXones, trainY, gd_iter, 0.0011)[1]
+    history2_proper = learn_grad_desc(trainXones, trainY, gd_iter, 0.0003)[1]
+    history2_large = learn_grad_desc(trainXones, trainY, gd_iter, 0.00055)[1]
     base = np.arange(gd_iter)
     plt.figure(1, figsize=(12,10))
     plt.subplot(221)
