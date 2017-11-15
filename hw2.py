@@ -2,8 +2,8 @@ import numpy as np
 import urllib.request as rq
 
 def main():
-    #get data
-    #make 5-fold partition
+    trainX, trainY, testX, testY = get_data()
+    train_partition = k_partition(trainX, trainY, 5)
 
     #Problem 1
     #for different learning rates
@@ -27,15 +27,35 @@ def main():
 
 # fetch traning / test data
 def get_data():
-    URL_TRAINING = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/a2a"
+    URL_TRAIN = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/a2a"
     URL_TEST = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/a2a.t"
-    Ltraining = rq.urlopen(URL_TRAINING).read().decode('utf-8').rstrip().split('\n')
-    Ltestraw = rq.urlopen(URL_TEST).read().decode('utf-8').rstrip().split('\n')
-    Ltest = Ltestraw[:1000]
+    Ltrain = rq.urlopen(URL_TRAIN).read().decode('utf-8').rstrip().split('\n')
+    Ltestfull = rq.urlopen(URL_TEST).read().decode('utf-8').rstrip().split('\n')
+    Ltest = Ltestfull[:1000]
+    train_size = len(Ltrain)
+    trainX = []
+    trainY = []
+    for line in Ltrain:
+        y, x = parse_data_line(line)
+        trainX.append(x)
+        trainY.append(y)
+
+    testX = []
+    testY = []
+    for line in Ltest:
+        y, x = parse_data_line(line)
+        testX.append(x)
+        testY.append(y)
+
+    # shuffling train data
+    indicies = np.random.permutation(train_size)
+    shuffTrainX = np.array(trainX)[indicies]
+    shuffTrainY = np.array(trainY)[indicies]
+
+    return shuffTrainX, shuffTrainY, np.array(testX), np.array(testY)
 
 
 def parse_data_line(line):
-    line = '+1 4:1 10:1 16:1 29:1 39:1 40:1 52:1 63:1 67:1 73:1 74:1 77:1 80:1 83:1 '
     word_list = line.rstrip().split()
     label = int(word_list[0])
     ZERO_ONES = False;
@@ -50,3 +70,16 @@ def parse_data_line(line):
         if(pair[1] != 0):
             encode[pair[0]] = pair[1]
     return (label, encode)
+
+def k_partition(trainX, trainY, k):
+    # assume pre-shuffled
+    b_size = trainX.shape[0]//k
+    partition = []
+    for i in range(k-1):
+        partX = trainX[i*b_size:(i+1)*b_size]
+        partY = trainY[i*b_size:(i+1)*b_size]
+        partition.append((partX, partY))
+    partX = trainX[(k-1)*b_size:]
+    partY = trainY[(k-1)*b_size:]
+    partition.append((partX, partY))
+    return partition
