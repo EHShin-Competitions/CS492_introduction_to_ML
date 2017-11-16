@@ -39,7 +39,7 @@ def main():
     #   avgerrors2.append cross validation SVM linear kernel
     #error2 = test SVM linear kernel for best C
     print("start SVM")
-    train_SVM(trainX[:3], trainY[:3], linear_P, [1])
+    train_SVM(trainX, trainY, linear_P, [1])
     print("end SVM")
     #Problem 3
     #for different C
@@ -71,27 +71,48 @@ def gaussian_P(X, Y, hyperparams):
     P = Y*E*(Y.reshape(-1,1))
     return P
 
+def test():
+    P = matrix([[14.,5.,8.],[5.,14.,9.],[8.,9.,14.]])
+    q = matrix([1.,1.,1.])
+    G = matrix([[-1.0,0.0,0.0],
+                [0.0,-1.0,0.0],
+                [0.0,0.0,-1.0],
+                [1.0,0.0,0.0],
+                [0.0,1.0,0.0],
+                [0.0,0.0,1.0]]).trans()
+    print(G)
+    C = 1.
+    h = matrix([0.,0.,0.,C,C,C])
+    A = matrix([-1.,-1.,-1.]).trans()
+    b = matrix([0.])
+    a = solvers.qp(P, q, G, h, A, b)
+
 def train_SVM(trainX, trainY, P_func, hyperparams):
     C = hyperparams[0]
     num_data = trainX.shape[0]
     P = P_func(trainX, trainY, hyperparams).astype(np.double)
     P = matrix(P)
-    q = matrix(np.full(trainX.shape[0], 1).astype(np.double))
+    q = -matrix(np.full(trainX.shape[0], 1).astype(np.double))
     h = matrix((np.append(np.full(trainX.shape[0], 0),np.full(trainX.shape[0], C))).astype(np.double))
     I = np.eye(trainX.shape[0])
     G = matrix(np.append(-I, I, axis=0))
-    dims = {'l':2*I.shape[0], 'q':[], 's':[]}
-    print("start solving")
     A = matrix(trainY.reshape(1,-1).astype(np.double))
     B = matrix(np.array([0]).astype(np.double))
-    print(P)
-    print(A)
-    print(G)
-    a = solvers.qp(-P,-q,G,h,A,B)
-    print("done solving")
-    w = None
-    b = None
-    return w, b
+    alpha = solvers.qp(P, q, G, h, A, B)['x']
+    print(alpha)
+    #postpone calculating w, b even for linear kernel for consistency
+    return trained_SVM(np.array(alpha), trainX, trainY)
+
+class trained_SVM():
+    def __init__(self, alpha, trainX, trainY):
+        self.alpha = alpha
+        self.trainX = trainX
+        self.trainY = trainY
+
+    def predict(self, x):
+        #predict label of x
+
+        return None
 
 # logistic regression by gradient descent
 def train_logistic(trainX, trainYzo, step_size, iterations):
@@ -183,6 +204,5 @@ def k_partition(trainX, trainY, k):
     partY = trainY[(k-1)*b_size:]
     partition.append((partX, partY))
     return partition
-
 
 main()
