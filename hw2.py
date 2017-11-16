@@ -1,6 +1,7 @@
 import numpy as np
 import urllib.request as rq
 import pickle
+from cvxopt import solvers, matrix
 
 def main():
     #trainX, trainY, trainYzo, testX, testY, testYzo = get_data()
@@ -38,7 +39,7 @@ def main():
     #   avgerrors2.append cross validation SVM linear kernel
     #error2 = test SVM linear kernel for best C
     print("start SVM")
-    train_SVM(trainX, trainY, gaussian_P, [1, 1])
+    train_SVM(trainX[:3], trainY[:3], linear_P, [1])
     print("end SVM")
     #Problem 3
     #for different C
@@ -72,16 +73,25 @@ def gaussian_P(X, Y, hyperparams):
 
 def train_SVM(trainX, trainY, P_func, hyperparams):
     C = hyperparams[0]
-
     num_data = trainX.shape[0]
-    P = P_func(trainX, trainY, hyperparams)
-    q = np.full(trainX.shape[0], 1)
-    h = np.append(np.full(trainX.shape[0], 0),np.full(trainX.shape[0], C))
-
+    P = P_func(trainX, trainY, hyperparams).astype(np.double)
+    P = matrix(P)
+    q = matrix(np.full(trainX.shape[0], 1).astype(np.double))
+    h = matrix((np.append(np.full(trainX.shape[0], 0),np.full(trainX.shape[0], C))).astype(np.double))
+    I = np.eye(trainX.shape[0])
+    G = matrix(np.append(-I, I, axis=0))
+    dims = {'l':2*I.shape[0], 'q':[], 's':[]}
+    print("start solving")
+    A = matrix(trainY.reshape(1,-1).astype(np.double))
+    B = matrix(np.array([0]).astype(np.double))
+    print(P)
+    print(A)
+    print(G)
+    a = solvers.qp(-P,-q,G,h,A,B)
+    print("done solving")
     w = None
     b = None
     return w, b
-
 
 # logistic regression by gradient descent
 def train_logistic(trainX, trainYzo, step_size, iterations):
