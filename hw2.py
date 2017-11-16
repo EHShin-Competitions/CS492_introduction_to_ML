@@ -21,6 +21,7 @@ def main():
     #for different learning rates
     #   graph1.append train logistic
     #   error1.append test logistic
+    '''
     logistic_histories = []
     logistic_pred_errors = []
     learning_rates = [0.0001, 0.0003, 0.001, 0.0012]
@@ -30,13 +31,15 @@ def main():
         logistic_histories.append(history)
         logistic_pred_errors.append(pred_error)
     print(logistic_pred_errors)
+    '''
 
     #Problem 2
     #for different C
     #   avgerrors2.append cross validation SVM linear kernel
     #error2 = test SVM linear kernel for best C
-    
-
+    print("start SVM")
+    train_SVM(trainX, trainY, gaussian_P, [1, 1])
+    print("end SVM")
     #Problem 3
     #for different C
     #   for dfiferent sigma
@@ -48,7 +51,36 @@ def main():
     pass
 
 
-# 
+def linear_kernel(x1, x2, hyperparams):
+    return  np.dot(x1, x2)
+
+def gaussian_kernel(x1, x2, hyperparams):
+    diff = x1-x2
+    sumSqDiff = np.dot(diff, diff)
+    return np.exp(-sumSqDiff/(2*hyperparams[1]))
+
+def linear_P(X, Y, hyperparams):
+    T = Y.reshape(-1,1) * X
+    return np.dot(T, T.transpose())
+
+def gaussian_P(X, Y, hyperparams):
+    Xe = X.reshape(X.shape[0], 1, -1)
+    D = Xe - Xe.transpose([1,0,2]) #utilize broadcasting
+    E = np.exp( -np.sum(D*D, axis=2) / (2*(hyperparams[1]**2)))
+    P = Y*E*(Y.reshape(-1,1))
+    return P
+
+def train_SVM(trainX, trainY, P_func, hyperparams):
+    C = hyperparams[0]
+
+    num_data = trainX.shape[0]
+    P = P_func(trainX, trainY, hyperparams)
+    q = np.full(trainX.shape[0], 1)
+    h = np.append(np.full(trainX.shape[0], 0),np.full(trainX.shape[0], C))
+
+    w = None
+    b = None
+    return w, b
 
 
 # logistic regression by gradient descent
