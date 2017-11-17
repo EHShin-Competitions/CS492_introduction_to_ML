@@ -4,27 +4,39 @@ import pickle
 import matplotlib.pyplot as plt
 from cvxopt import solvers, matrix
 
+#control
+P1 = True
+P2 = True
+P3 = True
+graph = True
+
 def main():
-    #trainX, trainY, trainYzo, testX, testY, testYzo = get_data()
-    #train_partition = k_partition(trainX, trainY, 5)
+    
+    print("Reading Data from internet...")
+    trainX, trainY, trainYzo, testX, testY, testYzo = get_data()
+    train_partition = k_partition(trainX, trainY, 5)
+    
 
     # save data
-    #DATA = (trainX, trainY, trainYzo, testX, testY, testYzo, train_partition)
-    #f = open('dataset.ml', 'wb')
-    #pickle.dump(DATA, f)
-    #f.close()
+    '''
+    DATA = (trainX, trainY, trainYzo, testX, testY, testYzo, train_partition)
+    f = open('dataset.ml', 'wb')
+    pickle.dump(DATA, f)
+    f.close()
+    '''
 
     # load data
+    '''
     f = open('dataset.ml', 'rb')
     DATA = pickle.load(f)
     trainX, trainY, trainYzo, testX, testY, testYzo, train_partition = DATA
-
-    #control
-    P1 = False
-
+    '''
+    
 
     #Problem 1
     if(P1):
+        print("<Logistic Regression>")
+        gd_iter = 300
         logistic_histories = []
         logistic_pred_errors = []
         learning_rates = [0.00003, 0.0003, 0.003]
@@ -34,72 +46,61 @@ def main():
             logistic_histories.append(history)
             logistic_pred_errors.append(pred_error)
         print(logistic_pred_errors)
-        graph_base = np.arange(gd_iter)
-        plt.figure(1, figsize=(12,10))
-        plt.subplot(221)
-        plt.plot(graph_base, logistic_histories[0])
-        plt.title('small step size')
-        plt.ylabel('loss')
-        plt.xlabel('iterations')
-        plt.subplot(222)
-        plt.plot(graph_base, logistic_histories[1])
-        plt.title('proper step size')
-        plt.ylabel('loss')
-        plt.xlabel('iterations')
-        plt.subplot(223)
-        plt.plot(graph_base, logistic_histories[2])
-        plt.title('large step size')
-        plt.ylabel('loss')
-        plt.xlabel('iterations')
-        plt.show()
-
+        if(graph):
+            graph_base = np.arange(gd_iter)
+            plt.figure(1, figsize=(12,10))
+            plt.subplot(221)
+            plt.plot(graph_base, logistic_histories[0])
+            plt.title('small step size')
+            plt.ylabel('loss')
+            plt.xlabel('iterations')
+            plt.subplot(222)
+            plt.plot(graph_base, logistic_histories[1])
+            plt.title('proper step size')
+            plt.ylabel('loss')
+            plt.xlabel('iterations')
+            plt.subplot(223)
+            plt.plot(graph_base, logistic_histories[2])
+            plt.title('large step size')
+            plt.ylabel('loss')
+            plt.xlabel('iterations')
+            plt.show()
 
     #Problem 2
-    '''
-    linSVM_cand_C = [100, 1000, 10000]
-    # 1:5 is good
-    for C in linSVM_cand_C:
-        ve, te = cross_validate_SVM(train_partition, linear_matrix, [C])
-        print("%f:%f:%f"%(C, ve, te))
-    '''
+    if(P2):
+        print("<Linear SVM>")
+        linSVM_cand_C = [0.1, 1, 10, 100, 1000]
+        for C in linSVM_cand_C:
+            ve, te = cross_validate_SVM(train_partition, linear_matrix, [C])
+            print("C: %f, Validate: %f, Training: %f"%(C, ve, te))
 
-   
-    #gaussSVM_cand_C = [0.25, 0.5, 1, 2, 4]
-    #gaussSVM_cand_sigma = [1,3,5]
-    '''
-    if(False):
-        gaussSVM_cand_C = [18,20,22]
-        gaussSVM_cand_sigma = [8,10,12]
+        kSVM = train_SVM(trainX, trainY, linear_matrix, [1000])
+        predY = kSVM.prediction(testX)
+        num_correct = np.sum(predY == testY)
+        pred_err = 1 - (num_correct/testX.shape[0])
+        print("linear SVM Prediction Error: %f"%(pred_err))  
+        if(graph):
+            bargraph_linear_C()
+
+    #Problem 3
+    if(P3):
+        print("<Gaussian SVM>")
+        gaussSVM_cand_C = [18,19,20,21,22]
+        gaussSVM_cand_sigma = [6,7,8,9,10]
         for C in gaussSVM_cand_C:
             for sigma in gaussSVM_cand_sigma:
                 ve, te = cross_validate_SVM(train_partition, gaussian_matrix, [C, sigma])
-                print("%f:%f:%f:%f"%(C, sigma, ve, te))
-    else:
-        direct = [(24,8),(16,8),(20,4),(20,12)]
-        for C, sigma in direct:
-            ve, te = cross_validate_SVM(train_partition, gaussian_matrix, [C, sigma])
-            print("%f:%f:%f:%f"%(C, sigma, ve, te))
-            '''
+                print("C: %f, sigma: %f, Validate: %f, Training: %f"%(C, sigma, ve, te))
 
-    kSVM = train_SVM(trainX, trainY, gaussian_matrix, [20,8])
-    predY = kSVM.prediction(testX)
-    num_correct = np.sum(predY == testY)
-    print(num_correct)
-    pred_err = 1 - (num_correct/testX.shape[0])
-    print(pred_err)
+        kSVM = train_SVM(trainX, trainY, gaussian_matrix, [20,8])
+        predY = kSVM.prediction(testX)
+        num_correct = np.sum(predY == testY)
+        pred_err = 1 - (num_correct/testX.shape[0])
+        print("gaussian SVM Prediction Error: %f"%(pred_err)) 
+        if(graph):
+            bargraph_gauss_C()
+            bargraph_gauss_sigma()
 
-    #avgerr = cross_validate_SVM(train_partition, linear_matrix, [0.01, 2])
-    #print(avgerr)
-
-    #Problem 3
-    #for different C
-    #   for dfiferent sigma
-    #       avgerrors3.append cross validation SVM gaussian kernel
-    #error3 = test SVM gaussian kernel for best C and sigma
-
-    # report errors
-    # draw graphs
-    pass
 
 def cross_validate_SVM(train_partition, K_func, hyperparams):
     pred_err_validate = []
@@ -276,5 +277,81 @@ def k_partition(trainX, trainY, k):
     partY = trainY[(k-1)*b_size:]
     partition.append((partX, partY))
     return partition
+
+
+## data for the following bargraph functions were obtained a priori
+
+def bargraph_gauss_C():
+    num_case = 5
+    opacity = 0.5
+    fig, ax = plt.subplots()
+    index = np.arange(num_case)
+    bar_width = 0.3
+    V = [18,19,20,21,22]
+    L1 = [
+    0.175717,
+    0.175717,
+    0.174834,
+    0.175276,
+    0.175717]
+
+    L2 = [0.146799,
+    0.145806,
+    0.144481,
+    0.143377,
+    0.142384]
+    r1 = ax.bar(index, L1, bar_width, alpha=opacity, color='b', label='Validation set',tick_label=V)
+    r2 = ax.bar(index+bar_width, L2, bar_width, alpha=opacity,color='g', label='Training set')
+    ax.set_xlabel('C')
+    ax.set_ylabel('Average prediction error')
+    ax.set_title('[Gaussian Kernel] avg.pred.err vs C when sigma = 8')
+    ax.legend()
+    fig.tight_layout()
+    plt.ylim([0.140, 0.180])
+    plt.show()
+
+def bargraph_gauss_sigma():
+    num_case = 5
+    opacity = 0.5
+    fig, ax = plt.subplots()
+    index = np.arange(num_case)
+    bar_width = 0.3
+    V = [6,7,8,9,10]
+    L1 = [0.1775,0.1757,0.1748,0.1757,0.1753]
+    L2 = [0.1268,0.1371,0.1444,0.1514,0.1561]
+
+    r1 = ax.bar(index, L1, bar_width, alpha=opacity, color='b', label='Validation set', tick_label=V)
+    r2 = ax.bar(index + bar_width, L2, bar_width, alpha=opacity, color='g', label='Training set')
+    ax.set_xlabel('sigma')
+    ax.set_ylabel('Average prediction error')
+    ax.set_title('[Gaussian Kernel] avg.pred.err vs sigma when C = 20')
+    ax.legend()
+    fig.tight_layout()
+    plt.ylim([0.120, 0.180])
+    plt.show()
+
+def bargraph_linear_C():
+    V = [0.1,1,10,100,1000]
+    L1 = [0.179691, 0.177483, 0.175717, 0.173068,0.172185]
+    L2 = [0.165232,
+    0.153974,
+    0.151214,
+    0.150331,
+    0.150662]
+    num_case = 5
+    opacity = 0.5
+    fig, ax = plt.subplots()
+    index = np.arange(num_case)
+    bar_width = 0.3
+
+    r1 = ax.bar(index, L1, bar_width, alpha=opacity, color='b', label='Validation set', tick_label=V)
+    r2 = ax.bar(index + bar_width, L2, bar_width, alpha=opacity, color='g', label='Training set')
+    ax.set_xlabel('C')
+    ax.set_ylabel('Average prediction error')
+    ax.set_title('[Linear Kernel] avg.pred.err vs C')
+    ax.legend()
+    fig.tight_layout()
+    plt.ylim([0.120, 0.180])
+    plt.show()
 
 main()
