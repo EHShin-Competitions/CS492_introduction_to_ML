@@ -1,6 +1,7 @@
 import numpy as np
 import urllib.request as rq
 import pickle
+import matplotlib.pyplot as plt
 from cvxopt import solvers, matrix
 
 def main():
@@ -18,43 +19,60 @@ def main():
     DATA = pickle.load(f)
     trainX, trainY, trainYzo, testX, testY, testYzo, train_partition = DATA
 
+    #control
+    P1 = False
+
+
     #Problem 1
-    #for different learning rates
-    #   graph1.append train logistic
-    #   error1.append test logistic
-    '''
-    logistic_histories = []
-    logistic_pred_errors = []
-    learning_rates = [0.0001, 0.0003, 0.001, 0.0012]
-    for lr in learning_rates:
-        beta, history = train_logistic(trainX, trainYzo, lr, 300)
-        pred_error = test_logistic(testX, testYzo, beta)
-        logistic_histories.append(history)
-        logistic_pred_errors.append(pred_error)
-    print(logistic_pred_errors)
-    '''
+    if(P1):
+        logistic_histories = []
+        logistic_pred_errors = []
+        learning_rates = [0.00003, 0.0003, 0.003]
+        for lr in learning_rates:
+            beta, history = train_logistic(trainX, trainYzo, lr, gd_iter)
+            pred_error = test_logistic(testX, testYzo, beta)
+            logistic_histories.append(history)
+            logistic_pred_errors.append(pred_error)
+        print(logistic_pred_errors)
+        graph_base = np.arange(gd_iter)
+        plt.figure(1, figsize=(12,10))
+        plt.subplot(221)
+        plt.plot(graph_base, logistic_histories[0])
+        plt.title('small step size')
+        plt.ylabel('loss')
+        plt.xlabel('iterations')
+        plt.subplot(222)
+        plt.plot(graph_base, logistic_histories[1])
+        plt.title('proper step size')
+        plt.ylabel('loss')
+        plt.xlabel('iterations')
+        plt.subplot(223)
+        plt.plot(graph_base, logistic_histories[2])
+        plt.title('large step size')
+        plt.ylabel('loss')
+        plt.xlabel('iterations')
+        plt.show()
+
 
     #Problem 2
-    #for different C
-    #   avgerrors2.append cross validation SVM linear kernel
-    #error2 = test SVM linear kernel for best C
-
-    linSVM_cand_C = [0.0105, 0.015]
+    '''
+    linSVM_cand_C = [100, 1000, 10000]
     # 1:5 is good
     for C in linSVM_cand_C:
         ve, te = cross_validate_SVM(train_partition, linear_matrix, [C])
         print("%f:%f:%f"%(C, ve, te))
-
-
     '''
-    gaussSVM_cand_C = [0.25, 0.5, 1, 2, 4]
-    gaussSVM_cand_sigma = [3,5,10]
-    # 1:5 is good
+
+   
+    #gaussSVM_cand_C = [0.25, 0.5, 1, 2, 4]
+    #gaussSVM_cand_sigma = [1,3,5]
+    gaussSVM_cand_C = [1000,10000]
+    gaussSVM_cand_sigma = [10]
     for C in gaussSVM_cand_C:
         for sigma in gaussSVM_cand_sigma:
             ve, te = cross_validate_SVM(train_partition, gaussian_matrix, [C, sigma])
             print("%f:%f:%f:%f"%(C, sigma, ve, te))
-    '''
+
     #avgerr = cross_validate_SVM(train_partition, linear_matrix, [0.01, 2])
     #print(avgerr)
 
@@ -71,7 +89,7 @@ def main():
 def cross_validate_SVM(train_partition, K_func, hyperparams):
     pred_err_validate = []
     pred_err_training = []
-    for i in range(len(train_partition)):
+    for i in range(len(train_partition)-3):
         validateX, validateY = train_partition[i]
         trainX, trainY = np.array([]).reshape(0,validateX.shape[1]), np.array([])
         for j in range(len(train_partition)):
@@ -149,7 +167,7 @@ class trained_SVM():
         pivotX = (self.trainX[pivot_idx]).reshape(1,-1)
         K = self.K_func(self.trainX, pivotX, self.hyperparams)
         weights = self.alpha.reshape(-1) * self.trainY
-        b = np.dot(weights, K)[0]
+        b = self.trainY[pivot_idx] - np.dot(weights, K)[0]
         self.b = b
         pass
 
