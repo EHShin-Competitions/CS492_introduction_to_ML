@@ -39,7 +39,8 @@ def main():
     #   avgerrors2.append cross validation SVM linear kernel
     #error2 = test SVM linear kernel for best C
     print("start SVM")
-    train_SVM(trainX, trainY, linear_P, [1])
+    lin_SVM = train_SVM(trainX, trainY, linear_matrix, [1])
+    lin_SVM.prediction(testX)
     print("end SVM")
     #Problem 3
     #for different C
@@ -60,16 +61,18 @@ def gaussian_kernel(x1, x2, hyperparams):
     sumSqDiff = np.dot(diff, diff)
     return np.exp(-sumSqDiff/(2*hyperparams[1]))
 
-def linear_P(X, Y, hyperparams):
-    T = Y.reshape(-1,1) * X
-    return np.dot(T, T.transpose())
+# kernel matrix functions:
+# (i-th row, j-th column) = K(i-th row of X1, j-th row of X2)
 
-def gaussian_P(X, Y, hyperparams):
-    Xe = X.reshape(X.shape[0], 1, -1)
-    D = Xe - Xe.transpose([1,0,2]) #utilize broadcasting
+def linear_matrix(X1, X2, hyperparams):
+    return np.dot(X1, X2.transpose())
+
+def gaussian_matrix(X1, X2, hyperparams):
+    X1e = X1.reshape(X1.shape[0], 1, -1)
+    X2e = X2.reshape(X2.shape[0], 1, -1)
+    D = X1e - X2e.transpose([1,0,2]) #utilize broadcasting
     E = np.exp( -np.sum(D*D, axis=2) / (2*(hyperparams[1]**2)))
-    P = Y*E*(Y.reshape(-1,1))
-    return P
+    return E
 
 def test():
     P = matrix([[14.,5.,8.],[5.,14.,9.],[8.,9.,14.]])
@@ -87,11 +90,11 @@ def test():
     b = matrix([0.])
     a = solvers.qp(P, q, G, h, A, b)
 
-def train_SVM(trainX, trainY, P_func, hyperparams):
+def train_SVM(trainX, trainY, K_func, hyperparams):
     C = hyperparams[0]
     num_data = trainX.shape[0]
-    P = P_func(trainX, trainY, hyperparams).astype(np.double)
-    P = matrix(P)
+    K = K_func(trainX, trainX, hyperparams).astype(np.double)
+    P = matrix(trainY*K*(trainY.reshape(-1,1)))
     q = -matrix(np.full(trainX.shape[0], 1).astype(np.double))
     h = matrix((np.append(np.full(trainX.shape[0], 0),np.full(trainX.shape[0], C))).astype(np.double))
     I = np.eye(trainX.shape[0])
@@ -99,20 +102,38 @@ def train_SVM(trainX, trainY, P_func, hyperparams):
     A = matrix(trainY.reshape(1,-1).astype(np.double))
     B = matrix(np.array([0]).astype(np.double))
     alpha = solvers.qp(P, q, G, h, A, B)['x']
-    print(alpha)
     #postpone calculating w, b even for linear kernel for consistency
-    return trained_SVM(np.array(alpha), trainX, trainY)
+    return trained_SVM(np.array(alpha), trainX, trainY, K_func, hyperparams)
 
 class trained_SVM():
-    def __init__(self, alpha, trainX, trainY):
+    def __init__(self, alpha, trainX, trainY, K_func, hyperparams):
         self.alpha = alpha
         self.trainX = trainX
         self.trainY = trainY
+        self.K_func = K_func
+        self.hyperparams = hyperparams
+        self.calc_b()
 
-    def predict(self, x):
-        #predict label of x
+    def prediction(self, testX):
+        #predict labels of testX
+        K = self.K_func(self.trainX, testX, self.hyperparams)
+        WdotPhis = np.dot(self.alpha * self.trainY, K)
+        res = np.sign(WdotPhis + self.b)
+        return res
 
-        return None
+    def calc_b(self):
+        print(self.alpha)
+        C = self.hyperparams[0]
+        eps = C/100.0
+        lb = self.alpha > eps
+        print(lb)
+        ub = self.alpha < C-eps
+        print(ub)
+        support_map = np.logical_and(lb, ub)
+        print(support_map)
+        print(np.sum(support_map))
+        self.b = 0
+        pass
 
 # logistic regression by gradient descent
 def train_logistic(trainX, trainYzo, step_size, iterations):
