@@ -38,10 +38,26 @@ def main():
     #for different C
     #   avgerrors2.append cross validation SVM linear kernel
     #error2 = test SVM linear kernel for best C
-    print("start SVM")
-    lin_SVM = train_SVM(trainX, trainY, linear_matrix, [1])
-    lin_SVM.prediction(testX)
-    print("end SVM")
+
+    linSVM_cand_C = [0.0105, 0.015]
+    # 1:5 is good
+    for C in linSVM_cand_C:
+        ve, te = cross_validate_SVM(train_partition, linear_matrix, [C])
+        print("%f:%f:%f"%(C, ve, te))
+
+
+    '''
+    gaussSVM_cand_C = [0.25, 0.5, 1, 2, 4]
+    gaussSVM_cand_sigma = [3,5,10]
+    # 1:5 is good
+    for C in gaussSVM_cand_C:
+        for sigma in gaussSVM_cand_sigma:
+            ve, te = cross_validate_SVM(train_partition, gaussian_matrix, [C, sigma])
+            print("%f:%f:%f:%f"%(C, sigma, ve, te))
+    '''
+    #avgerr = cross_validate_SVM(train_partition, linear_matrix, [0.01, 2])
+    #print(avgerr)
+
     #Problem 3
     #for different C
     #   for dfiferent sigma
@@ -52,14 +68,30 @@ def main():
     # draw graphs
     pass
 
+def cross_validate_SVM(train_partition, K_func, hyperparams):
+    pred_err_validate = []
+    pred_err_training = []
+    for i in range(len(train_partition)):
+        validateX, validateY = train_partition[i]
+        trainX, trainY = np.array([]).reshape(0,validateX.shape[1]), np.array([])
+        for j in range(len(train_partition)):
+            if(i!=j):
+                partX, partY = train_partition[j]
+                trainX = np.append(trainX, partX, axis=0)
+                trainY = np.append(trainY, partY)
+        kSVM = train_SVM(trainX, trainY, K_func, hyperparams)
+        predY = kSVM.prediction(validateX)
+        num_correct = np.sum(predY == validateY)
+        pred_err = 1 - (num_correct/validateY.shape[0])
+        pred_err_validate.append(pred_err)
+        predY = kSVM.prediction(trainX)
+        num_correct = np.sum(predY == trainY)
+        pred_err = 1 - (num_correct/trainY.shape[0])
+        pred_err_training.append(pred_err)
 
-def linear_kernel(x1, x2, hyperparams):
-    return  np.dot(x1, x2)
-
-def gaussian_kernel(x1, x2, hyperparams):
-    diff = x1-x2
-    sumSqDiff = np.dot(diff, diff)
-    return np.exp(-sumSqDiff/(2*hyperparams[1]))
+    avg_validate = sum(pred_err_validate)/len(pred_err_validate)
+    avg_training = sum(pred_err_training)/len(pred_err_training)
+    return avg_validate, avg_training
 
 # kernel matrix functions:
 # (i-th row, j-th column) = K(i-th row of X1, j-th row of X2)
@@ -74,22 +106,6 @@ def gaussian_matrix(X1, X2, hyperparams):
     E = np.exp( -np.sum(D*D, axis=2) / (2*(hyperparams[1]**2)))
     return E
 
-def test():
-    P = matrix([[14.,5.,8.],[5.,14.,9.],[8.,9.,14.]])
-    q = matrix([1.,1.,1.])
-    G = matrix([[-1.0,0.0,0.0],
-                [0.0,-1.0,0.0],
-                [0.0,0.0,-1.0],
-                [1.0,0.0,0.0],
-                [0.0,1.0,0.0],
-                [0.0,0.0,1.0]]).trans()
-    print(G)
-    C = 1.
-    h = matrix([0.,0.,0.,C,C,C])
-    A = matrix([-1.,-1.,-1.]).trans()
-    b = matrix([0.])
-    a = solvers.qp(P, q, G, h, A, b)
-
 def train_SVM(trainX, trainY, K_func, hyperparams):
     C = hyperparams[0]
     num_data = trainX.shape[0]
@@ -101,6 +117,7 @@ def train_SVM(trainX, trainY, K_func, hyperparams):
     G = matrix(np.append(-I, I, axis=0))
     A = matrix(trainY.reshape(1,-1).astype(np.double))
     B = matrix(np.array([0]).astype(np.double))
+    solvers.options['show_progress'] = False
     alpha = solvers.qp(P, q, G, h, A, B)['x']
     #postpone calculating w, b even for linear kernel for consistency
     return trained_SVM(np.array(alpha), trainX, trainY, K_func, hyperparams)
@@ -117,22 +134,23 @@ class trained_SVM():
     def prediction(self, testX):
         #predict labels of testX
         K = self.K_func(self.trainX, testX, self.hyperparams)
-        WdotPhis = np.dot(self.alpha * self.trainY, K)
+        weights = self.alpha.reshape(-1) * self.trainY
+        WdotPhis = np.dot(weights, K)
         res = np.sign(WdotPhis + self.b)
         return res
 
     def calc_b(self):
-        print(self.alpha)
         C = self.hyperparams[0]
-        eps = C/100.0
+        eps = C/10.0
         lb = self.alpha > eps
-        print(lb)
         ub = self.alpha < C-eps
-        print(ub)
         support_map = np.logical_and(lb, ub)
-        print(support_map)
-        print(np.sum(support_map))
-        self.b = 0
+        pivot_idx = np.where(support_map)[0][0]
+        pivotX = (self.trainX[pivot_idx]).reshape(1,-1)
+        K = self.K_func(self.trainX, pivotX, self.hyperparams)
+        weights = self.alpha.reshape(-1) * self.trainY
+        b = np.dot(weights, K)[0]
+        self.b = b
         pass
 
 # logistic regression by gradient descent
