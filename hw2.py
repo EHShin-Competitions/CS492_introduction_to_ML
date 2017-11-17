@@ -66,12 +66,27 @@ def main():
    
     #gaussSVM_cand_C = [0.25, 0.5, 1, 2, 4]
     #gaussSVM_cand_sigma = [1,3,5]
-    gaussSVM_cand_C = [1000,10000]
-    gaussSVM_cand_sigma = [10]
-    for C in gaussSVM_cand_C:
-        for sigma in gaussSVM_cand_sigma:
+    '''
+    if(False):
+        gaussSVM_cand_C = [18,20,22]
+        gaussSVM_cand_sigma = [8,10,12]
+        for C in gaussSVM_cand_C:
+            for sigma in gaussSVM_cand_sigma:
+                ve, te = cross_validate_SVM(train_partition, gaussian_matrix, [C, sigma])
+                print("%f:%f:%f:%f"%(C, sigma, ve, te))
+    else:
+        direct = [(24,8),(16,8),(20,4),(20,12)]
+        for C, sigma in direct:
             ve, te = cross_validate_SVM(train_partition, gaussian_matrix, [C, sigma])
             print("%f:%f:%f:%f"%(C, sigma, ve, te))
+            '''
+
+    kSVM = train_SVM(trainX, trainY, gaussian_matrix, [20,8])
+    predY = kSVM.prediction(testX)
+    num_correct = np.sum(predY == testY)
+    print(num_correct)
+    pred_err = 1 - (num_correct/testX.shape[0])
+    print(pred_err)
 
     #avgerr = cross_validate_SVM(train_partition, linear_matrix, [0.01, 2])
     #print(avgerr)
@@ -89,7 +104,7 @@ def main():
 def cross_validate_SVM(train_partition, K_func, hyperparams):
     pred_err_validate = []
     pred_err_training = []
-    for i in range(len(train_partition)-3):
+    for i in range(len(train_partition)):
         validateX, validateY = train_partition[i]
         trainX, trainY = np.array([]).reshape(0,validateX.shape[1]), np.array([])
         for j in range(len(train_partition)):
