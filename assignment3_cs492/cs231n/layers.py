@@ -26,7 +26,7 @@ def affine_forward(x, w, b):
     # will need to reshape the input into rows.                               #
     ###########################################################################
     flatX = x.reshape(x.shape[0], -1)
-    out = np.dot(flatX, w) + b #broadcasting
+    out = (np.dot(flatX, w) + b).astype(np.float64) #broadcasting
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -57,9 +57,9 @@ def affine_backward(dout, cache):
     ###########################################################################
     flatX = x.reshape(x.shape[0], -1) #(N, D)
     dflatX = np.dot(dout, w.transpose()) #(N, D)
-    dx = dflatX.reshape(x.shape)
-    dw = np.dot(flatX.transpose(), dout)
-    db = np.sum(dout, axis = 0)
+    dx = dflatX.reshape(x.shape).astype(np.float64)
+    dw = np.dot(flatX.transpose(), dout).astype(np.float64)
+    db = np.sum(dout, axis = 0).astype(np.float64)
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -83,7 +83,7 @@ def relu_forward(x):
     # TODO: Implement the ReLU forward pass.                                  #
     ###########################################################################
     zeros = np.full(x.shape, 0)
-    out = np.maximum(x, zeros)
+    out = np.maximum(x, zeros).astype(np.float64)
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -107,7 +107,7 @@ def relu_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the ReLU backward pass.                                 #
     ###########################################################################
-    dx = (1*(x>0))*dout
+    dx = (1.0*(x>0))*dout
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
