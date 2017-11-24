@@ -47,6 +47,10 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer weights #
         # and biases using the keys 'W2' and 'b2'.                                 #
         ############################################################################
+        self.params['W1'] = np.random.normal(loc=0.0, scale=weight_scale, size=(input_dim, hidden_dim))
+        self.params['b1'] = np.full(hidden_dim, 0)
+        self.params['W2'] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dim, num_classes))
+        self.params['b2'] = np.full(hidden_dim, 0)
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -77,6 +81,10 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
+
+        a1, a1cache = affine_forward(X, self.params['W1'], self.params['b1'])
+        r1, r1cache = relu_forward(a1)
+        scores, a2cache = affine_forward(r1, self.params['W2'], self.params['b2'])
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -97,6 +105,21 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
+
+        smloss, da2 = softmax_loss(scores, y)
+        dr1, grads['W2'], grads['b2'] = affine_backward(da2, a2cache)
+        da1 = relu_backward(dr1, r1cache)
+        dx, grads['W1'], grads['b1'] = affine_backward(da1, a1cache)
+
+        #regularization
+        loss = (smloss +
+            self.reg*0.5*(
+            np.sum(np.square(self.params['W1'].reshape(-1)))
+            + np.sum(np.square(self.params['W2'].reshape(-1)))))
+
+        grads['W1'] += self.reg*self.params['W1']
+        grads['W2'] += self.reg*self.params['W2']
+
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
