@@ -25,6 +25,8 @@ def affine_forward(x, w, b):
     # TODO: Implement the affine forward pass. Store the result in out. You   #
     # will need to reshape the input into rows.                               #
     ###########################################################################
+    flatX = x.reshape(x.shape[0], -1)
+    out = np.dot(flatX, w) + b #broadcasting
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -53,6 +55,11 @@ def affine_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
+    flatX = x.reshape(x.shape[0], -1) #(N, D)
+    dflatX = np.dot(dout, w.transpose()) #(N, D)
+    dx = dflatX.reshape(x.shape)
+    dw = np.dot(flatX.transpose(), dout)
+    db = np.sum(dout, axis = 0)
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -75,6 +82,8 @@ def relu_forward(x):
     ###########################################################################
     # TODO: Implement the ReLU forward pass.                                  #
     ###########################################################################
+    zeros = np.full(x.shape, 0)
+    out = np.maximum(x, zeros)
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -98,6 +107,7 @@ def relu_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the ReLU backward pass.                                 #
     ###########################################################################
+    dx = (1*(x>0))*dout
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
