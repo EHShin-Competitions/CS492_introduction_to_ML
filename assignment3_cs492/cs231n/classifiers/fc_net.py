@@ -186,7 +186,10 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to one and shift      #
         # parameters should be initialized to zero.                                #
         ############################################################################
-        pass
+        dims = [input_dim]+hidden_dims+[num_classes]
+        for i in range(1,len(dims)):
+            self.params['W'+str(i)]=np.random.normal(loc=0.0,scale=weight_scale,size=(dims[i-1],dims[i]))
+            self.params['b'+str(i)]=np.full(dims[i], 0.0)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -244,6 +247,21 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
+        aouts = [None]
+        acaches = [None]
+        routs = [X]
+        rcaches = [None]
+        L = self.num_layers
+        for i in range(1, L+1):
+            ao, ac = affine_forward(routs[i-1], self.params['W'+str(i)], self.params['b'+str(i)])
+            aouts.append(ao)
+            acaches.append(ac)
+            if(i==L):
+                break
+            ro, rc = relu_forward(aouts[i])
+            routs.append(ro)
+            rcaches.append(rc)
+        scores = aouts[L]
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -267,7 +285,21 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        smloss, daL = softmax_loss(scores, y)
+        das = [daL]
+        for i in range(L):
+            dr, grads['W'+str(L-i)], grads['b'+str(L-i)] = affine_backward(das[i], acaches[L-i])
+            if(i==L-1):
+                break
+            das.append(relu_backward(dr, rcaches[L-i-1]))
+
+        #regularization
+        sqsum = 0
+        for i in range(1,L+1):
+            sqsum += np.sum(np.square(self.params['W'+str(i)].reshape(-1)))
+            grads['W'+str(i)] += self.reg*self.params['W'+str(i)]
+        loss = smloss + self.reg*0.5*sqsum
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
