@@ -255,11 +255,19 @@ class FullyConnectedNet(object):
         if(self.use_batchnorm):
             bouts = [None]
             bcaches = [None]
-        routs = [X]
+        if(self.use_dropout):
+            douts = [X]
+            dcaches = [None]
+            routs = [None]
+        else:
+            routs = [X]
         rcaches = [None]
         L = self.num_layers
         for i in range(1, L+1):
-            ao, ac = affine_forward(routs[i-1], self.params['W'+str(i)], self.params['b'+str(i)])
+            if(self.use_dropout):
+                ao, ac = affine_forward(douts[i-1], self.params['W'+str(i)], self.params['b'+str(i)])
+            else:
+                ao, ac = affine_forward(routs[i-1], self.params['W'+str(i)], self.params['b'+str(i)])
             aouts.append(ao)
             acaches.append(ac)
             if(i==L):
@@ -279,6 +287,10 @@ class FullyConnectedNet(object):
                 ro, rc = relu_forward(aouts[i])
             routs.append(ro)
             rcaches.append(rc)
+            if(self.use_dropout):
+                do, dc = dropout_forward(ro, self.dropout_param)
+                douts.append(do)
+                dcaches.append(dc)
         scores = aouts[L]
         pass
         ############################################################################
@@ -306,11 +318,16 @@ class FullyConnectedNet(object):
         smloss, daL = softmax_loss(scores, y)
         das = [daL]
         for i in range(L):
-            dr, grads['W'+str(L-i)], grads['b'+str(L-i)] = affine_backward(das[i], acaches[L-i])
+            dtemp, grads['W'+str(L-i)], grads['b'+str(L-i)] = affine_backward(das[i], acaches[L-i])
             if(i==L-1):
                 break
+            if(self.use_dropout):
+                dr = dropout_backward(dtemp, dcaches[L-i-1])
+                temp = relu_backward(dr, rcaches[L-i-1])
+            else:
+                temp = relu_backward(dtemp, rcaches[L-i-1])
             if(self.use_batchnorm):
-                db = relu_backward(dr, rcaches[L-i-1])
+                db = temp
                 da, grads['gamma'+str(L-i-1)], grads['beta'+str(L-i-1)]  = batchnorm_backward(
                     db.reshape((db.shape[0], -1)),
                     bcaches[L-i-1]
@@ -318,7 +335,7 @@ class FullyConnectedNet(object):
                 da = da.reshape(db.shape)
                 das.append(da)
             else:
-                das.append(relu_backward(dr, rcaches[L-i-1]))
+                das.append(temp)
 
         #regularization
         sqsum = 0
