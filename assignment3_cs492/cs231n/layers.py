@@ -179,11 +179,13 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # variables.                                                          #
         #######################################################################
         sample_mean = np.mean(x, axis=0)
-        sample_var = np.var(x, axis=0)
+        x_squared = np.square(x)
+        sample_var = np.mean(x_squared, axis=0) - np.square(sample_mean)
         running_mean = momentum*running_mean + (1-momentum)*sample_mean
         running_var = momentum*running_var + (1-momentum)*sample_var
-        x_hat = (x - sample_mean)/np.sqrt(sample_var)
+        x_hat = (x - sample_mean)/(np.sqrt(sample_var)+eps)
         out = gamma*x_hat + beta
+        cache = (x, sample_mean, sample_var, eps, x_hat, gamma)
         pass
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -195,7 +197,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
-        x_hat = (x - running_mean)/np.sqrt(running_var)
+        x_hat = (x - running_mean)/(np.sqrt(running_var)+eps)
         out = gamma*x_hat + beta
         pass
         #######################################################################
@@ -233,12 +235,193 @@ def batchnorm_backward(dout, cache):
     # TODO: Implement the backward pass for batch normalization. Store the    #
     # results in the dx, dgamma, and dbeta variables.                         #
     ###########################################################################
+
+    x, sample_mean, sample_var, eps, x_hat, gamma = cache
+
+    dbeta = np.sum(dout, axis=0)
+    #column-wise dot product
+    dgamma = np.einsum('ij,ij->j', x_hat, dout)
+
+    ### tensor shape reduced to avoid redundancy
+
+    N, D = x.shape
+
+    # (D)
+    m = sample_mean
+
+    # (D)
+    v = sample_var
+
+    # (D) // common for one column
+    dx_hat_dm = -1/(np.sqrt(v)+eps)
+
+    # (D) // common for one column
+    dm_dx = 1/N
+
+    # (D) // common for one column
+    # nonzero for matching columns
+    dx_hat_dm_dm_dx = dx_hat_dm * dm_dx
+
+    # (D) // common for one column (xp is dummy variable for x)
+    # nozero for matching entry
+    dx_hat_dxp_dxp_dx = 1/(np.sqrt(v)+eps)
+
+    # (N, D) // derivative nonzero for matching columns
+    dx_hat_dv = ((-1/(2*np.sqrt(v)*np.square(np.sqrt(v)+eps)))
+                *(x - m)) #broadcasting
+
+    # (N, D) // derivative nonzero for matching columns
+    dv_dx = (2/N)*x - (2*m*dm_dx) #broadcasting
+
+    # (N, N, D) // derivative nonzero for matching columns
+    dx_hat_dv_dv_dx = np.einsum('ik,jk->ijk', dx_hat_dv, dv_dx)
+
+    # (N, N, D) // derivative nonzero for matching columns
+    intersum = dx_hat_dm_dm_dx + dx_hat_dxp_dxp_dx
+    dx_hat_dx = (dx_hat_dm_dm_dx + dx_hat_dxp_dxp_dx) + dx_hat_dv_dv_dx #broadcasting
+
+    """
+    dx_hat_dx[:,:,D]
+    =
+    dx_hat_dm_dm_dx[D] * ones(N*N)
+    +
+    dx_hat_dxp_dxp_dx[D] * eye(N)
+    +
+    dx_hat_dv_dv_dx[:,:,D]
+    """
+    NNDones = np.ones((N,N,D))
+    temp1 = dx_hat_dm_dm_dx * NNDones
+    NNDeye = np.swapaxes(np.broadcast_to(np.eye(N), (D,N,N)),0,2)
+    temp2 = dx_hat_dxp_dxp_dx * NNDeye
+    dx_hat_dx = dx_hat_dv_dv_dx + temp1 + temp2
+
+    #(N,D) testing
+    #dx = np.einsum('ijk,ik->jk', dx_hat_dx, dout)
+    #dx = np.einsum('ijk,ik->jk', dx_hat_dx, dout)
+    # (D) // common for one column
+    dout_dx_hat = gamma
+
+    # (N, D)
+    dx_hat = dout_dx_hat * dout #broadcasting
+
+    # (N, D)
+    dx = np.einsum('ijk,jk->ik', dx_hat_dx, dx_hat)
+
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
 
     return dx, dgamma, dbeta
+
+
+
+def test_forward(x, gamma, beta, bn_param, fixedx):
+    out, cache = None, None
+    mode = bn_param['mode']
+    eps = bn_param.get('eps', 1e-5)
+    momentum = bn_param.get('momentum', 0.9)
+
+    N, D = x.shape
+    running_mean = bn_param.get('running_mean', np.zeros(D, dtype=x.dtype))
+    running_var = bn_param.get('running_var', np.zeros(D, dtype=x.dtype))
+
+    sample_mean = np.mean(x, axis=0)
+    x_squared = np.square(x)
+    sample_var = np.mean(x_squared, axis=0) - np.square(np.mean(x,axis=0))
+    running_mean = momentum*running_mean + (1-momentum)*sample_mean
+    running_var = momentum*running_var + (1-momentum)*sample_var
+    x_hat = (x - sample_mean)/(np.sqrt(sample_var)+eps)
+    out = gamma*x_hat + beta
+    cache = (x, sample_mean, sample_var, eps, x_hat, gamma)
+
+    #out = x_hat
+
+    return out, cache
+    pass
+
+def test_backward(dout, cache):
+    x, sample_mean, sample_var, eps, x_hat, gamma = cache
+
+    dbeta, dgamma = 0,0
+
+    #dbeta = np.sum(dout, axis=0)
+    #column-wise dot product
+    #dgamma = np.einsum('ij,ij->j', x_hat, dout)
+
+    ### tensor shape reduced to avoid redundancy
+
+    N, D = x.shape
+
+    # (D)
+    m = sample_mean
+
+    # (D)
+    v = sample_var
+
+    # (D) // common for one column
+    dx_hat_dm = -1/(np.sqrt(v)+eps)
+
+    # (D) // common for one column
+    dm_dx = 1/N
+
+    # (D) // common for one column
+    # nonzero for matching columns
+    dx_hat_dm_dm_dx = dx_hat_dm * dm_dx
+
+    # (D) // common for one column (xp is dummy variable for x)
+    # nozero for matching entry
+    dx_hat_dxp_dxp_dx = 1/(np.sqrt(v)+eps)
+
+    # (N, D) // derivative nonzero for matching columns
+    dx_hat_dv = ((-1/(2*np.sqrt(v)*np.square(np.sqrt(v)+eps)))
+                *(x - m)) #broadcasting
+
+    # (N, D) // derivative nonzero for matching columns
+    dv_dx = (2/N)*x - (2*m*dm_dx) #broadcasting
+
+    # (N, N, D) // derivative nonzero for matching columns
+    dx_hat_dv_dv_dx = np.einsum('ik,jk->ijk', dx_hat_dv, dv_dx)
+
+    # (N, N, D) // derivative nonzero for matching columns
+    intersum = dx_hat_dm_dm_dx + dx_hat_dxp_dxp_dx
+    dx_hat_dx = (dx_hat_dm_dm_dx + dx_hat_dxp_dxp_dx) + dx_hat_dv_dv_dx #broadcasting
+
+    """
+    dx_hat_dx[:,:,D]
+    =
+    dx_hat_dm_dm_dx[D] * ones(N*N)
+    +
+    dx_hat_dxp_dxp_dx[D] * eye(N)
+    +
+    dx_hat_dv_dv_dx[:,:,D]
+    """
+    NNDones = np.ones((N,N,D))
+    temp1 = dx_hat_dm_dm_dx * NNDones
+    NNDeye = np.swapaxes(np.broadcast_to(np.eye(N), (D,N,N)),0,2)
+    temp2 = dx_hat_dxp_dxp_dx * NNDeye
+    dx_hat_dx = dx_hat_dv_dv_dx + temp1 + temp2
+
+    #(N,D) testing
+    #dx = np.einsum('ijk,ik->jk', dx_hat_dx, dout)
+    #dx = np.einsum('ijk,ik->jk', dx_hat_dx, dout)
+    # (D) // common for one column
+    dout_dx_hat = gamma
+
+    # (N, D)
+    dx_hat = dout_dx_hat * dout #broadcasting
+
+    # (N, D)
+    dx = np.einsum('ijk,jk->ik', dx_hat_dx, dx_hat)
+
+    pass
+    ###########################################################################
+    #                             END OF YOUR CODE                            #
+    ###########################################################################
+
+    return dx, dgamma, dbeta
+
+    pass
 
 
 def batchnorm_backward_alt(dout, cache):
