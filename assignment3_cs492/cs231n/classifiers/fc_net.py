@@ -190,6 +190,9 @@ class FullyConnectedNet(object):
         for i in range(1,len(dims)):
             self.params['W'+str(i)]=np.random.normal(loc=0.0,scale=weight_scale,size=(dims[i-1],dims[i]))
             self.params['b'+str(i)]=np.full(dims[i], 0.0)
+            if(self.use_batchnorm and i<len(dims)-1):
+                self.params['gamma'+str(i)]=np.full(dims[i], 1.0)
+                self.params['beta'+str(i)]=np.full(dims[i], 0.0)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -249,6 +252,9 @@ class FullyConnectedNet(object):
         ############################################################################
         aouts = [None]
         acaches = [None]
+        if(self.use_batchnorm):
+            bouts = [None]
+            bcaches = [None]
         routs = [X]
         rcaches = [None]
         L = self.num_layers
@@ -258,7 +264,19 @@ class FullyConnectedNet(object):
             acaches.append(ac)
             if(i==L):
                 break
-            ro, rc = relu_forward(aouts[i])
+            if(self.use_batchnorm):
+                bo, bc = batchnorm_forward(
+                    aouts[i].reshape((aouts[i].shape[0],-1)),
+                    self.params['gamma'+str(i)],
+                    self.params['beta'+str(i)],
+                    self.bn_params[i-1]
+                )
+                bo = bo.reshape(aouts[i].shape)
+                bouts.append(bo)
+                bcaches.append(bc)
+                ro, rc = relu_forward(bo)
+            else:
+                ro, rc = relu_forward(aouts[i])
             routs.append(ro)
             rcaches.append(rc)
         scores = aouts[L]
@@ -291,7 +309,16 @@ class FullyConnectedNet(object):
             dr, grads['W'+str(L-i)], grads['b'+str(L-i)] = affine_backward(das[i], acaches[L-i])
             if(i==L-1):
                 break
-            das.append(relu_backward(dr, rcaches[L-i-1]))
+            if(self.use_batchnorm):
+                db = relu_backward(dr, rcaches[L-i-1])
+                da, grads['gamma'+str(L-i-1)], grads['beta'+str(L-i-1)]  = batchnorm_backward(
+                    db.reshape((db.shape[0], -1)),
+                    bcaches[L-i-1]
+                )
+                da = da.reshape(db.shape)
+                das.append(da)
+            else:
+                das.append(relu_backward(dr, rcaches[L-i-1]))
 
         #regularization
         sqsum = 0
