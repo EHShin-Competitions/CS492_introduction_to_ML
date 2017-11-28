@@ -523,6 +523,30 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # TODO: Implement the max pooling forward pass                            #
     ###########################################################################
+    N, C, H, W = x.shape
+    ph = pool_param['pool_height']
+    pw = pool_param['pool_width']
+    outH = (H-1)//ph + 1
+    outW = (W-1)//pw + 1
+    out = np.empty((N, C, outH, outW))
+    for n in range(N):
+        for c in range(C):
+            for oi in range(outH):
+                for oj in range(outW):
+                    ii = oi*ph
+                    jj = oj*pw
+                    current_max = x[n,c,ii,jj]
+                    for pi in range(ph):
+                        if(ii+pi>=H):
+                            break
+                        for pj in range(pw):
+                            if(jj+pj>=W):
+                                break
+                            t = x[n,c,ii+pi,jj+pj]
+                            if(t > current_max):
+                                current_max = t
+                    out[n, c, oi, oj] = current_max
+
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -546,6 +570,32 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the max pooling backward pass                           #
     ###########################################################################
+    x, pool_param = cache
+    N, C, H, W = x.shape
+    ph = pool_param['pool_height']
+    pw = pool_param['pool_width']
+    outH = (H-1)//ph + 1
+    outW = (W-1)//pw + 1
+    dx = np.zeros_like(x)
+    for n in range(N):
+        for c in range(C):
+            for oi in range(outH):
+                for oj in range(outW):
+                    ii = oi*ph
+                    jj = oj*pw
+                    current_max = x[n,c,ii,jj]
+                    mi, mj = ii, jj
+                    for pi in range(ph):
+                        if(ii+pi>=H):
+                            break
+                        for pj in range(pw):
+                            if(jj+pj>=W):
+                                break
+                            t = x[n,c,ii+pi,jj+pj]
+                            if(t > current_max):
+                                current_max = t
+                                mi, mj = ii+pi, jj+pj
+                    dx[n, c, mi, mj] = dout[n, c, oi, oj]
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
