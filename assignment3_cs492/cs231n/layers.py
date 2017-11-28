@@ -426,7 +426,7 @@ def conv_forward_naive(x, w, b, conv_param):
     F,C,HH,WW = w.shape
     stride = conv_param['stride']
     pad = conv_param['pad']
-    padx = np.pad(x,((0,0),(0,0),(pad,pad),(pad,pad)),'constant',constant_values=0.0)
+    padx = np.pad(x,((0,0),(0,0),(pad,pad),(pad,pad)),'constant')
     Hp = 1 + (H + 2*pad - HH)//stride
     Wp = 1 + (W + 2*pad - WW)//stride
     out = np.empty((N,F,Hp,Wp))
@@ -442,8 +442,6 @@ def conv_forward_naive(x, w, b, conv_param):
                     for c in range(C):
                         for fi in range(HH):
                             for fj in range(WW):
-                                #inc = w[f,c,fi,fj]*padx[n,c,xi+fi-Bi,xj+fj-Bj]
-                                #print("(%d,%d,%d,%d)+=%d"%(n,f,oi,oj,inc))
                                 res += (w[f,c,fi,fj]*padx[n,c,xi+fi,xj+fj])
                     out[n,f,oi,oj] = res + b[f]
     pass
@@ -471,6 +469,34 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
+    N, F, Hp, Wp = dout.shape
+    x, w, b, conv_param = cache
+    N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    stride = conv_param['stride']
+    pad = conv_param['pad']
+    padx = np.pad(x,((0,0),(0,0),(pad,pad),(pad,pad)),'constant')
+
+    # db is easy
+    db = np.einsum('afij->f', dout)
+
+    dw = np.zeros_like(w)
+    dx = np.zeros_like(x)
+    for n in range(N):
+        for f in range(F):
+            for oi in range(Hp):
+                for oj in range(Wp):
+                    xi = oi * stride
+                    xj = oj * stride
+                    for c in range(C):
+                        for fi in range(HH):
+                            for fj in range(WW):
+                                dw[f,c,fi,fj] += (dout[n,f,oi,oj]*padx[n,c,xi+fi,xj+fj])
+                                i_orig = xi+fi-pad
+                                j_orig = xj+fj-pad
+                                if( i_orig >= 0 and i_orig < H and j_orig >= 0 and j_orig < W):
+                                    dx[n,c,i_orig,j_orig] += (dout[n,f,oi,oj]*w[f,c,fi,fj])
+
     pass
     ###########################################################################
     #                             END OF YOUR CODE                            #
